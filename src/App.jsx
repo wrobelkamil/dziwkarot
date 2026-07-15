@@ -11,6 +11,8 @@ import CardReveal from "./components/CardReveal.jsx";
 import DeckGallery from "./components/DeckGallery.jsx";
 import OraclePanel from "./components/OraclePanel.jsx";
 
+const VOICE = "szept"; // jedyny głos wróżki
+
 function drawCards(n) {
   const deck = [...cards];
   for (let i = deck.length - 1; i > 0; i--) {
@@ -41,7 +43,6 @@ export default function App() {
   const [phase, setPhase] = useState("intro");
   const [question, setQuestion] = useState("");
   const [spreadId, setSpreadId] = useState("three");
-  const [voiceKey, setVoiceKey] = useState("mistyczny");
   const [draw, setDraw] = useState([]);
   const [modal, setModal] = useState(null); // { index, rect }
   const [showDeck, setShowDeck] = useState(false);
@@ -55,12 +56,9 @@ export default function App() {
   const mutedRef = useRef(false);
   const audioRef = useRef(null);
   const textsRef = useRef({});
-  const voiceRef = useRef("mistyczny");
+  const urlsRef = useRef({}); // cache audio (mp3) per karta — bez ponownej generacji
 
-  const chooseVoice = useCallback((v) => {
-    voiceRef.current = v;
-    setVoiceKey(v);
-  }, []);
+  const keyForIndex = (i) => (i >= draw.length ? "closing" : i);
 
   const beginReading = useCallback(() => {
     setDraw(drawCards(spread.positions.length));
@@ -86,34 +84,49 @@ export default function App() {
     }
   };
 
-  // Dokładnie jeden głos na raz — każde wywołanie unieważnia poprzednie.
-  const playVoice = (text, onReadyToShow) => {
+  const revokeAll = () => {
+    Object.values(urlsRef.current).forEach((u) => URL.revokeObjectURL(u));
+    urlsRef.current = {};
+  };
+
+  // Odtwórz JUŻ wygenerowany dźwięk z cache (bez zapytania do API).
+  const playFromUrl = (url) => {
+    speakSeqRef.current += 1;
+    stopAudio();
+    if (mutedRef.current) return;
+    const a = new Audio(url);
+    audioRef.current = a;
+    a.play().catch(() => {});
+  };
+
+  // Wygeneruj głos raz, zapamiętaj w cache, odtwórz. onReady pokazuje tekst.
+  const speakNew = (key, text, onReady) => {
     const seq = ++speakSeqRef.current;
     const token = tokenRef.current;
     stopAudio();
     const stale = () => seq !== speakSeqRef.current || token !== tokenRef.current;
 
     if (mutedRef.current || !text) {
-      if (onReadyToShow) onReadyToShow();
+      if (onReady) onReady();
       return;
     }
-    fetchSpeech(text, voiceRef.current)
+    fetchSpeech(text, VOICE)
       .then((url) => {
         if (stale() || mutedRef.current) {
           URL.revokeObjectURL(url);
-          if (onReadyToShow && !stale()) onReadyToShow();
+          if (onReady && !stale()) onReady();
           return;
         }
+        urlsRef.current[key] = url; // cache
         stopAudio();
         const a = new Audio(url);
         audioRef.current = a;
-        a.onended = () => URL.revokeObjectURL(url);
-        if (onReadyToShow) onReadyToShow();
+        if (onReady) onReady();
         a.play().catch(() => {});
       })
       .catch((e) => {
         if (!stale()) {
-          if (onReadyToShow) onReadyToShow(e.message);
+          if (onReady) onReady(e.message);
           else setOracle((o) => ({ ...o, audioErr: e.message }));
         }
       });
@@ -147,7 +160,7 @@ export default function App() {
       if (token !== tokenRef.current) return;
       textsRef.current[i] = text;
       setOracle((o) => ({ ...o, status: "voicing" }));
-      playVoice(text, (audioErr) =>
+      speakNew(i, text, (audioErr) =>
         setOracle((o) => ({ ...o, texts: { ...o.texts, [i]: text }, status: "ready", audioErr: audioErr || null }))
       );
     },
@@ -170,7 +183,7 @@ export default function App() {
     if (token !== tokenRef.current) return;
     textsRef.current.closing = text;
     setOracle((o) => ({ ...o, status: "voicing" }));
-    playVoice(text, (audioErr) =>
+    speakNew("closing", text, (audioErr) =>
       setOracle((o) => ({ ...o, texts: { ...o.texts, closing: text }, status: "done", done: true, audioErr: audioErr || null }))
     );
   }, [draw, question]);
@@ -184,6 +197,7 @@ export default function App() {
     speakSeqRef.current += 1;
     mutedRef.current = false;
     textsRef.current = {};
+    revokeAll();
     setOracle({ ...initialOracle, active: true, status: "thinking" });
     runStep(0);
   }, [runStep]);
@@ -201,9 +215,15 @@ export default function App() {
   const currentText = () =>
     indexRef.current >= draw.length ? textsRef.current.closing : textsRef.current[indexRef.current];
 
+  // Ponowne czytanie: odtwórz z cache, a jeśli brak — wygeneruj raz.
   const replay = useCallback(() => {
-    const t = currentText();
-    if (t) playVoice(t);
+    const key = keyForIndex(indexRef.current);
+    const url = urlsRef.current[key];
+    if (url) playFromUrl(url);
+    else {
+      const t = currentText();
+      if (t) speakNew(key, t);
+    }
   }, [draw.length]);
 
   const toggleMute = useCallback(() => {
@@ -214,8 +234,13 @@ export default function App() {
       speakSeqRef.current += 1;
       stopAudio();
     } else {
-      const t = currentText();
-      if (t) playVoice(t);
+      const key = keyForIndex(indexRef.current);
+      const url = urlsRef.current[key];
+      if (url) playFromUrl(url);
+      else {
+        const t = currentText();
+        if (t) speakNew(key, t);
+      }
     }
   }, [draw.length]);
 
@@ -223,6 +248,7 @@ export default function App() {
     tokenRef.current += 1;
     speakSeqRef.current += 1;
     stopAudio();
+    revokeAll();
     setOracle(initialOracle);
   }, []);
 
@@ -230,6 +256,7 @@ export default function App() {
     tokenRef.current += 1;
     speakSeqRef.current += 1;
     stopAudio();
+    revokeAll();
     setModal(null);
     setDraw([]);
     textsRef.current = {};
@@ -250,8 +277,6 @@ export default function App() {
           setQuestion={setQuestion}
           spreadId={spreadId}
           setSpreadId={setSpreadId}
-          voiceKey={voiceKey}
-          onVoice={chooseVoice}
           onShowDeck={() => setShowDeck(true)}
           onBegin={beginReading}
         />

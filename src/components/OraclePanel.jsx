@@ -8,7 +8,7 @@ export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, on
       <div className="oracle">
         <div className="oracle__panel">
           <button className="oracle__x" onClick={onClose} aria-label="Zamknij">✕</button>
-          <p className="oracle__who">Madame Dziwina śpi…</p>
+          <p className="oracle__who">Madame Dziweczka śpi…</p>
           <p className="oracle__text">
             Wróżka nie ma jeszcze połączenia z zaświatami. Wdróż Cloudflare
             Workera wg <code>worker/README.md</code> i wpisz jego adres w{" "}
@@ -48,18 +48,18 @@ export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, on
     status === "thinking"
       ? "wpatruje się w karty…"
       : status === "voicing"
-      ? "przywołuje głos…"
-      : done
-      ? "seans zakończony"
-      : muted
-      ? "głos wyciszony"
-      : "🔊 czyta…";
+        ? "przywołuje głos…"
+        : done
+          ? "seans zakończony"
+          : muted
+            ? "głos wyciszony"
+            : "🔊 czyta…";
 
   const nextLabel = done
     ? "Zakończ seans"
     : index === draw.length - 1
-    ? "Podsumowanie ✦"
-    : "Następna karta →";
+      ? "Podsumowanie ✦"
+      : "Następna karta →";
 
   const onPrimary = done ? onClose : onNext;
 
@@ -69,10 +69,10 @@ export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, on
         <button className="oracle__x" onClick={onClose} aria-label="Zakończ seans">✕</button>
 
         <div className="oracle__head">
-          <span className="oracle__who">🔮 Madame Dziwina</span>
+          <span className="oracle__who">🔮 Madame Dziweczka</span>
           <span className="oracle__status">
             {statusLabel}
-            {busy && <span className="dots"><i/><i/><i/></span>}
+            {busy && <span className="dots"><i /><i /><i /></span>}
           </span>
         </div>
 

@@ -1,17 +1,10 @@
 import spreads from "../data/spreads.js";
 
-const VOICES = [
-  { key: "mistyczny", label: "Mistyczny", desc: "głęboki, wróżbiarski" },
-  { key: "szept", label: "Szept", desc: "cichy, tajemniczy" },
-];
-
 export default function Intro({
   question,
   setQuestion,
   spreadId,
   setSpreadId,
-  voiceKey,
-  onVoice,
   onShowDeck,
   onBegin,
 }) {
@@ -21,7 +14,7 @@ export default function Intro({
         <div className="sigil" aria-hidden="true">✶</div>
         <h1 className="title">Dziwkarot</h1>
         <p className="subtitle">
-          Wyrocznia trzydziestu siedmiu kart. Wycisz myśli, zadaj pytanie
+          Wyrocznia dziwkarota. Wycisz myśli, zadaj pytanie
           i pozwól, by karty odsłoniły to, co ukryte.
         </p>
 
@@ -59,23 +52,6 @@ export default function Intro({
           </div>
         </div>
 
-        <div className="voice-select">
-          <span className="field__label">Głos wróżki</span>
-          <div className="voice-row">
-            {VOICES.map((v) => (
-              <button
-                key={v.key}
-                type="button"
-                className={"voice-chip" + (v.key === voiceKey ? " is-active" : "")}
-                onClick={() => onVoice(v.key)}
-              >
-                <span className="voice-chip__label">{v.label}</span>
-                <span className="voice-chip__desc">{v.desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <button type="button" className="begin-btn" onClick={onBegin}>
           <span>Postaw karty</span>
         </button>
@@ -84,7 +60,7 @@ export default function Intro({
           Zobacz pełną talię
         </button>
 
-        <p className="disclaimer">projekt satyryczny · nie traktuj poważnie</p>
+        <p className="disclaimer">Twoja stara</p>
       </div>
     </div>
   );
