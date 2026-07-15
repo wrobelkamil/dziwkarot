@@ -1,8 +1,8 @@
 // Dziwkarot Oracle — Cloudflare Worker (proxy).
-// Trzyma klucze API jako SEKRETY (nigdy w kodzie ani w repo):
-//   wrangler secret put GEMINI_API_KEY
-//   wrangler secret put ELEVENLABS_API_KEY
-// Zmienne jawne (w wrangler.toml [vars]): GEMINI_MODEL, ELEVEN_VOICE_ID, ALLOWED_ORIGINS.
+// Klucze API jako SEKRETY (nigdy w repo):
+//   npx wrangler secret put GEMINI_API_KEY
+//   npx wrangler secret put ELEVENLABS_API_KEY
+// Zmienne jawne w wrangler.toml [vars]: GEMINI_MODEL, ELEVEN_VOICE_ID, ELEVEN_MODEL, ALLOWED_ORIGINS.
 
 export default {
   async fetch(request, env) {
@@ -18,7 +18,7 @@ export default {
       if (pathname === "/speak") return await handleSpeak(request, env, cors);
       return json({ error: "Not found" }, 404, cors);
     } catch (e) {
-      return json({ error: String(e && e.message || e) }, 500, cors);
+      return json({ error: String((e && e.message) || e) }, 500, cors);
     }
   },
 };
@@ -35,7 +35,7 @@ function corsHeaders(origin, env) {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 }
 
@@ -62,7 +62,7 @@ async function handleProphecy(request, env, cors) {
     },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 1.05, topP: 0.95, maxOutputTokens: 500 },
+      generationConfig: { temperature: 1.0, topP: 0.95, maxOutputTokens: 4096 },
     }),
   });
 
@@ -71,11 +71,22 @@ async function handleProphecy(request, env, cors) {
     return json({ error: `Gemini ${res.status}`, detail: detail.slice(0, 500) }, 502, cors);
   }
   const data = await res.json();
-  const text =
-    (data.candidates?.[0]?.content?.parts || [])
-      .map((p) => p.text || "")
-      .join("")
-      .trim() || "Karta milczy… ale jej cisza też jest odpowiedzią.";
+  const cand = data.candidates?.[0];
+  const text = (cand?.content?.parts || [])
+    .map((p) => p.text || "")
+    .join("")
+    .trim();
+  if (!text) {
+    return json(
+      {
+        text: "Karta milczy… mgła nie chce się rozstąpić. Spróbuj jeszcze raz.",
+        finishReason: cand?.finishReason || null,
+        blocked: data.promptFeedback?.blockReason || null,
+      },
+      200,
+      cors
+    );
+  }
   return json({ text }, 200, cors);
 }
 
@@ -92,7 +103,7 @@ function buildPrompt(body) {
     return (
       persona +
       "\n\nTo domknięcie seansu. Pytanie klienta: " +
-      (q ? `„${q}"` : "(nie zadano wprost — potraktuj to jako pytanie o najbliższą przyszłość)") +
+      (q ? `„${q}”` : "(nie zadano wprost — potraktuj to jako pytanie o najbliższą przyszłość)") +
       ".\nWłaśnie odsłoniłaś wszystkie karty. Wypowiedz krótką, spójną klamrę-przepowiednię (3–4 zdania), " +
       "która łączy wymowę całego rozkładu i daje klientowi jedną myśl na drogę. Zakończ ciepłym, lekko przewrotnym błogosławieństwem."
     );
@@ -102,9 +113,9 @@ function buildPrompt(body) {
   return (
     persona +
     "\n\nPytanie klienta: " +
-    (q ? `„${q}"` : "(nie zadano wprost — potraktuj to jako pytanie o najbliższą przyszłość)") +
-    `.\nWłaśnie odsłaniasz kartę ${index + 1} z ${total} na pozycji „${position}".` +
-    `\nKarta: „${card?.name}" (pozycja ${orient}).` +
+    (q ? `„${q}”` : "(nie zadano wprost — potraktuj to jako pytanie o najbliższą przyszłość)") +
+    `.\nWłaśnie odsłaniasz kartę ${index + 1} z ${total} na pozycji „${position}”.` +
+    `\nKarta: „${card?.name}” (pozycja ${orient}).` +
     `\nJej wymowa: ${card?.meaning}` +
     "\n\nWypowiedz przepowiednię dotyczącą tej jednej karty i jej pozycji (3–5 zdań), " +
     "wplatając nawiązanie do pytania. Mów jak wróżka na żywo — bez wstępów typu „oto twoja karta”, od razu do rzeczy."
@@ -128,13 +139,13 @@ async function handleSpeak(request, env, cors) {
     body: JSON.stringify({
       text,
       model_id: env.ELEVEN_MODEL || "eleven_multilingual_v2",
-      voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true },
+      voice_settings: { stability: 0.45, similarity_boost: 0.8 },
     }),
   });
 
   if (!res.ok) {
     const detail = await res.text();
-    return json({ error: `ElevenLabs ${res.status}`, detail: detail.slice(0, 300) }, 502, cors);
+    return json({ error: `ElevenLabs ${res.status}`, detail: detail.slice(0, 400) }, 502, cors);
   }
   return new Response(res.body, {
     status: 200,

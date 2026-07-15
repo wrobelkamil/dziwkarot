@@ -1,7 +1,7 @@
-export default function OraclePanel({ oracle, draw, spread, onMute, onSkip, onClose }) {
-  const { index, texts, status, error, muted, done } = oracle;
+export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, onMute, onClose }) {
+  const { index, texts, status, error, audioErr, muted, done } = oracle;
 
-  // --- Worker nie skonfigurowany ---
+  // Worker nie skonfigurowany
   if (error === "NOT_CONFIGURED") {
     return (
       <div className="oracle">
@@ -10,9 +10,8 @@ export default function OraclePanel({ oracle, draw, spread, onMute, onSkip, onCl
           <p className="oracle__who">Madame Dziwina śpi…</p>
           <p className="oracle__text">
             Wróżka nie ma jeszcze połączenia z zaświatami. Wdróż Cloudflare
-            Workera wg <code>worker/README.md</code> i wklej jego adres do{" "}
-            <code>src/config.js</code> (pole <code>ORACLE_URL</code>), a potem
-            przebuduj stronę.
+            Workera wg <code>worker/README.md</code> i wpisz jego adres w{" "}
+            <code>src/config.js</code> (<code>ORACLE_URL</code>), potem przebuduj stronę.
           </p>
           <div className="oracle__controls">
             <button className="ghost-btn" onClick={onClose}>Rozumiem</button>
@@ -22,8 +21,8 @@ export default function OraclePanel({ oracle, draw, spread, onMute, onSkip, onCl
     );
   }
 
-  // --- Błąd wywołania ---
-  if (error) {
+  // Błąd pobrania przepowiedni
+  if (status === "error") {
     return (
       <div className="oracle">
         <div className="oracle__panel">
@@ -31,7 +30,7 @@ export default function OraclePanel({ oracle, draw, spread, onMute, onSkip, onCl
           <p className="oracle__who">Zaświaty milczą</p>
           <p className="oracle__text oracle__text--err">{error}</p>
           <div className="oracle__controls">
-            <button className="ghost-btn" onClick={onClose}>Zamknij</button>
+            <button className="ghost-btn" onClick={onClose}>Zamknij seans</button>
           </div>
         </div>
       </div>
@@ -41,17 +40,25 @@ export default function OraclePanel({ oracle, draw, spread, onMute, onSkip, onCl
   const isClosing = index >= draw.length;
   const entry = !isClosing ? draw[index] : null;
   const label = !isClosing ? spread.positions[index]?.label : "Klamra seansu";
-  const name = !isClosing ? entry?.card.name : "✶";
+  const name = !isClosing ? entry?.card.name : "✦ Podsumowanie";
   const text = isClosing ? texts.closing : texts[index];
 
   const statusLabel =
     status === "thinking"
       ? "wpatruje się w karty…"
-      : status === "speaking"
-      ? "przemawia…"
       : done
       ? "seans zakończony"
-      : "";
+      : muted
+      ? "głos wyciszony"
+      : "🔊 czyta…";
+
+  const nextLabel = done
+    ? "Zakończ seans"
+    : index === draw.length - 1
+    ? "Podsumowanie ✦"
+    : "Następna karta →";
+
+  const onPrimary = done ? onClose : onNext;
 
   return (
     <div className="oracle">
@@ -81,17 +88,26 @@ export default function OraclePanel({ oracle, draw, spread, onMute, onSkip, onCl
           {text || "…"}
         </p>
 
+        {audioErr && !muted && (
+          <p className="oracle__audioerr">🔇 głos niedostępny — {audioErr}</p>
+        )}
+
         <div className="oracle__controls">
-          <button className="ghost-btn ghost-btn--soft" onClick={onMute}>
+          <button
+            type="button"
+            className="oracle-next"
+            onClick={onPrimary}
+            disabled={status === "thinking"}
+          >
+            {nextLabel}
+          </button>
+          <button type="button" className="ghost-btn ghost-btn--soft" onClick={onMute}>
             {muted ? "🔇 Głos wył." : "🔊 Głos wł."}
           </button>
-          {status === "speaking" && !muted && (
-            <button className="ghost-btn ghost-btn--soft" onClick={onSkip}>
-              ⏭ Pomiń głos
+          {text && !muted && (
+            <button type="button" className="ghost-btn ghost-btn--soft" onClick={onReplay}>
+              ↻ Przeczytaj
             </button>
-          )}
-          {done && (
-            <button className="ghost-btn" onClick={onClose}>Zamknij seans</button>
           )}
         </div>
       </div>

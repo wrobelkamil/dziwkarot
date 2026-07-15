@@ -26,12 +26,13 @@ function drawCards(n) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const initialOracle = {
-  running: false,
+  active: false,
   done: false,
   index: 0,
   texts: {},
-  status: "idle", // idle | thinking | speaking | done | error
+  status: "idle", // idle | thinking | ready | done | error
   error: null,
+  audioErr: null,
   muted: false,
 };
 
@@ -45,8 +46,8 @@ export default function App() {
 
   const spread = getSpread(spreadId);
 
-  const runningRef = useRef(false);
-  const cancelRef = useRef(false);
+  const tokenRef = useRef(0); // unieważnia stare operacje async po resecie
+  const indexRef = useRef(0);
   const mutedRef = useRef(false);
   const audioRef = useRef(null);
   const resolveRef = useRef(null);
@@ -74,119 +75,129 @@ export default function App() {
       try { audioRef.current.pause(); } catch {}
       audioRef.current = null;
     }
-    if (resolveRef.current) {
-      const r = resolveRef.current;
-      resolveRef.current = null;
-      r();
-    }
   };
 
-  const playUrl = (url) =>
-    new Promise((resolve) => {
-      const a = new Audio(url);
-      audioRef.current = a;
-      resolveRef.current = resolve;
-      const done = () => {
-        resolveRef.current = null;
-        resolve();
-      };
-      a.onended = done;
-      a.onerror = done;
-      a.play().catch(done);
-    });
+  // Odtwarza głos w tle — NIE blokuje przechodzenia między kartami.
+  const speakBg = (text, token) => {
+    if (mutedRef.current || !text) return;
+    stopAudio();
+    fetchSpeech(text)
+      .then((url) => {
+        if (token !== tokenRef.current || mutedRef.current) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        const a = new Audio(url);
+        audioRef.current = a;
+        a.onended = () => URL.revokeObjectURL(url);
+        a.play().catch(() => {});
+      })
+      .catch((e) => {
+        if (token === tokenRef.current) {
+          setOracle((o) => ({ ...o, audioErr: e.message }));
+        }
+      });
+  };
 
-  const skip = useCallback(() => stopAudio(), []);
+  const textAt = (i) => (i >= draw.length ? oracle.texts.closing : oracle.texts[i]);
+
+  const runStep = useCallback(
+    async (i) => {
+      const token = tokenRef.current;
+      indexRef.current = i;
+      setOracle((o) => ({ ...o, active: true, index: i, status: "thinking", error: null, audioErr: null }));
+      reveal(i);
+      await wait(900);
+      if (token !== tokenRef.current) return;
+      let text;
+      try {
+        text = await fetchProphecy({
+          question,
+          position: spread.positions[i].label,
+          index: i,
+          total: draw.length,
+          card: {
+            name: draw[i].card.name,
+            reversed: draw[i].reversed,
+            meaning: draw[i].reversed ? draw[i].card.reversed : draw[i].card.upright,
+          },
+        });
+      } catch (e) {
+        if (token === tokenRef.current) {
+          setOracle((o) => ({ ...o, status: "error", error: e.message }));
+        }
+        return;
+      }
+      if (token !== tokenRef.current) return;
+      setOracle((o) => ({ ...o, texts: { ...o.texts, [i]: text }, status: "ready" }));
+      speakBg(text, token);
+    },
+    [draw, question, spread, reveal]
+  );
+
+  const runClosing = useCallback(async () => {
+    const token = tokenRef.current;
+    indexRef.current = draw.length;
+    setOracle((o) => ({ ...o, index: draw.length, status: "thinking", audioErr: null }));
+    await wait(300);
+    if (token !== tokenRef.current) return;
+    let text = "";
+    try {
+      text = await fetchProphecy({ question, closing: true, total: draw.length });
+    } catch {
+      setOracle((o) => ({ ...o, status: "done", done: true }));
+      return;
+    }
+    if (token !== tokenRef.current) return;
+    setOracle((o) => ({ ...o, texts: { ...o.texts, closing: text }, status: "done", done: true }));
+    speakBg(text, token);
+  }, [draw, question]);
+
+  const startOracle = useCallback(() => {
+    if (!oracleConfigured()) {
+      setOracle({ ...initialOracle, active: true, error: "NOT_CONFIGURED", status: "error" });
+      return;
+    }
+    tokenRef.current += 1;
+    mutedRef.current = false;
+    setOracle({ ...initialOracle, active: true, status: "thinking" });
+    runStep(0);
+  }, [runStep]);
+
+  const nextCard = useCallback(() => {
+    if (oracle.status === "thinking") return;
+    stopAudio();
+    if (oracle.done) return; // przycisk „zakończ" obsłużony osobno
+    const i = indexRef.current;
+    if (i < draw.length - 1) runStep(i + 1);
+    else runClosing();
+  }, [oracle.status, oracle.done, draw.length, runStep, runClosing]);
+
+  const replay = useCallback(() => {
+    const t = textAt(indexRef.current);
+    if (t) speakBg(t, tokenRef.current);
+  }, [oracle.texts, draw.length]);
 
   const toggleMute = useCallback(() => {
     const next = !mutedRef.current;
     mutedRef.current = next;
     setOracle((o) => ({ ...o, muted: next }));
     if (next) stopAudio();
-  }, []);
-
-  const cardPayload = (i) => ({
-    question,
-    position: spread.positions[i].label,
-    index: i,
-    total: draw.length,
-    card: {
-      name: draw[i].card.name,
-      reversed: draw[i].reversed,
-      meaning: draw[i].reversed ? draw[i].card.reversed : draw[i].card.upright,
-    },
-  });
-
-  const startOracle = useCallback(async () => {
-    if (runningRef.current) return;
-    if (!oracleConfigured()) {
-      setOracle({ ...initialOracle, error: "NOT_CONFIGURED", status: "error" });
-      return;
+    else {
+      const t = textAt(indexRef.current);
+      if (t) speakBg(t, tokenRef.current);
     }
-    runningRef.current = true;
-    cancelRef.current = false;
-    mutedRef.current = false;
-    setOracle({ ...initialOracle, running: true, status: "thinking" });
-
-    for (let i = 0; i < draw.length; i++) {
-      if (cancelRef.current) break;
-      setOracle((o) => ({ ...o, index: i, status: "thinking" }));
-      reveal(i);
-      await wait(950);
-      let text;
-      try {
-        text = await fetchProphecy(cardPayload(i));
-      } catch (e) {
-        setOracle((o) => ({ ...o, error: e.message, running: false, status: "error" }));
-        runningRef.current = false;
-        return;
-      }
-      if (cancelRef.current) break;
-      setOracle((o) => ({ ...o, texts: { ...o.texts, [i]: text }, status: "speaking" }));
-      if (!mutedRef.current) {
-        try {
-          const url = await fetchSpeech(text);
-          if (cancelRef.current) { URL.revokeObjectURL(url); break; }
-          await playUrl(url);
-          URL.revokeObjectURL(url);
-        } catch {
-          await wait(1800);
-        }
-      } else {
-        await wait(1900);
-      }
-      await wait(400);
-    }
-
-    if (!cancelRef.current) {
-      setOracle((o) => ({ ...o, index: draw.length, status: "thinking" }));
-      try {
-        const text = await fetchProphecy({ question, closing: true, total: draw.length });
-        setOracle((o) => ({ ...o, texts: { ...o.texts, closing: text }, status: "speaking" }));
-        if (!mutedRef.current) {
-          try {
-            const url = await fetchSpeech(text);
-            if (!cancelRef.current) { await playUrl(url); }
-            URL.revokeObjectURL(url);
-          } catch { await wait(1600); }
-        }
-      } catch {}
-    }
-
-    setOracle((o) => ({ ...o, running: false, done: true, status: "done" }));
-    runningRef.current = false;
-  }, [draw, question, spread, reveal]);
+  }, [oracle.texts, draw.length]);
 
   const closeOracle = useCallback(() => {
-    cancelRef.current = true;
+    tokenRef.current += 1;
     stopAudio();
-    runningRef.current = false;
     setOracle(initialOracle);
   }, []);
 
   const reset = useCallback(() => {
-    cancelRef.current = true;
+    tokenRef.current += 1;
     stopAudio();
-    runningRef.current = false;
     setModalIndex(null);
     setDraw([]);
     setOracle(initialOracle);
@@ -224,7 +235,7 @@ export default function App() {
           onRevealAll={revealAll}
           onReset={reset}
           onStartOracle={startOracle}
-          oracleActive={oracle.running || oracle.done}
+          oracleActive={oracle.active}
           allRevealed={allRevealed}
         />
       )}
@@ -237,13 +248,14 @@ export default function App() {
         />
       )}
 
-      {phase === "reading" && (oracle.running || oracle.done || oracle.error) && (
+      {phase === "reading" && oracle.active && (
         <OraclePanel
           oracle={oracle}
           draw={draw}
           spread={spread}
+          onNext={nextCard}
+          onReplay={replay}
           onMute={toggleMute}
-          onSkip={skip}
           onClose={closeOracle}
         />
       )}
