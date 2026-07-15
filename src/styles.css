@@ -524,3 +524,145 @@ body {
   .board[data-spread="single"] { --cardw: 46%; }
   .board[data-spread="three"] { --cardw: 30%; }
 }
+
+/* ---------------- ORACLE (wróżka AI) ---------------- */
+.foot-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+.oracle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #f7ecc9;
+  background: linear-gradient(180deg, rgba(76, 43, 122, 0.9), rgba(43, 22, 74, 0.95));
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 15px 32px;
+  cursor: pointer;
+  box-shadow: 0 0 26px rgba(177, 140, 255, 0.35), 0 10px 26px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.oracle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(177, 140, 255, 0.6), 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+.oracle-btn__icon { font-size: 20px; filter: drop-shadow(0 0 8px var(--gold-dim)); }
+
+.oracle {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 18px;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(6, 3, 14, 0.55) 0%, transparent 45%);
+}
+.oracle__panel {
+  pointer-events: auto;
+  position: relative;
+  width: min(680px, 100%);
+  background: linear-gradient(180deg, rgba(40, 22, 70, 0.97), rgba(16, 9, 30, 0.98));
+  border: 1px solid var(--gold-dim);
+  border-radius: 20px;
+  padding: 20px 24px 22px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.6), 0 0 50px rgba(177, 140, 255, 0.12);
+  animation: oracleUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes oracleUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.oracle__x {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.oracle__x:hover { color: var(--gold); }
+
+.oracle__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-right: 20px;
+}
+.oracle__who {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+.oracle__status {
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--violet);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.dots { display: inline-flex; gap: 3px; }
+.dots i {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--violet);
+  animation: dot 1.1s ease-in-out infinite;
+}
+.dots i:nth-child(2) { animation-delay: 0.18s; }
+.dots i:nth-child(3) { animation-delay: 0.36s; }
+@keyframes dot {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+
+.oracle__card {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.oracle__pos {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+.oracle__name { font-family: var(--font-display); font-size: 20px; color: #fff6dc; }
+.oracle__rev { font-family: var(--font-body); font-size: 14px; font-style: italic; color: var(--gold); }
+.oracle__count { margin-left: auto; font-size: 12.5px; color: var(--ink-dim); }
+
+.oracle__text {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0 0 16px;
+  min-height: 3em;
+  max-height: 34vh;
+  overflow-y: auto;
+  animation: fadeIn 0.5s ease both;
+}
+.oracle__text.is-loading { color: var(--ink-dim); letter-spacing: 0.3em; }
+.oracle__text--err { color: #ffb4a8; font-style: italic; }
+
+.oracle__controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+@media (max-width: 720px) {
+  .oracle__head { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .oracle__text { font-size: 18px; max-height: 40vh; }
+  .oracle-btn { font-size: 14px; padding: 14px 22px; }
+}

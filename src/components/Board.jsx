@@ -8,6 +8,8 @@ export default function Board({
   onOpen,
   onRevealAll,
   onReset,
+  onStartOracle,
+  oracleActive,
   allRevealed,
 }) {
   return (
@@ -41,24 +43,35 @@ export default function Board({
       </div>
 
       <footer className="reading__foot">
-        {!allRevealed ? (
-          <>
-            <p className="hint">
-              Dotknij karty, by ją odsłonić · dotknij ponownie, by poznać
-              znaczenie
-            </p>
-            <button type="button" className="ghost-btn" onClick={onRevealAll}>
-              Odsłoń wszystkie
+        {!oracleActive && (
+          <button type="button" className="oracle-btn" onClick={onStartOracle}>
+            <span className="oracle-btn__icon">🔮</span>
+            <span>Poproś wróżkę o przepowiednię</span>
+          </button>
+        )}
+
+        {!oracleActive && (
+          <div className="foot-row">
+            {!allRevealed && (
+              <button type="button" className="ghost-btn" onClick={onRevealAll}>
+                Odsłoń wszystkie
+              </button>
+            )}
+            <button
+              type="button"
+              className="ghost-btn ghost-btn--soft"
+              onClick={onReset}
+            >
+              Nowe rozdanie
             </button>
-          </>
-        ) : (
+          </div>
+        )}
+
+        {!oracleActive && (
           <p className="hint">
-            Dotknij dowolnej karty, by przeczytać jej znaczenie
+            Możesz też sam dotykać kart, by je odsłaniać i czytać znaczenia
           </p>
         )}
-        <button type="button" className="ghost-btn ghost-btn--soft" onClick={onReset}>
-          Nowe rozdanie
-        </button>
       </footer>
     </div>
   );

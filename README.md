@@ -57,3 +57,20 @@ Wszystkie teksty są w `src/data/cards.js` — edytuj pola `upright` (pozycja pr
 ## 🌐 Deploy na GitHub Pages
 
 Projekt ma ustawione `base: "./"`, więc build działa też w podkatalogu. Po `npm run build` wrzuć zawartość folderu `dist/` na branch `gh-pages` (lub użyj GitHub Actions dla Vite).
+
+## 🔮 Wróżka AI (Gemini + ElevenLabs)
+
+Po rozłożeniu kart pojawia się przycisk **„Poproś wróżkę o przepowiednię"**. Wróżka
+(Madame Dziwina) odsłania karty po kolei, przy każdej wypowiada przepowiednię
+generowaną przez **Gemini** i czyta ją na głos przez **ElevenLabs**, a na koniec
+podsumowuje cały rozkład.
+
+Klucze API **nie mogą** siedzieć w tej stronie (jest publiczna), więc obsługuje je
+mały serwer-proxy: **Cloudflare Worker** w folderze [`worker/`](./worker). Kroki:
+
+1. Wdróż Workera wg [`worker/README.md`](./worker/README.md) (ustawiasz klucze jako sekrety).
+2. Wklej adres Workera do `src/config.js` → `ORACLE_URL`.
+3. Zbuduj i wypchnij stronę (`git push`) — Actions zdeployuje nową wersję.
+
+Dopóki `ORACLE_URL` to placeholder, przycisk pokaże krótką instrukcję zamiast wywołań AI.
+Głos można wyciszyć (🔊/🔇), a lektora pominąć w trakcie seansu.
