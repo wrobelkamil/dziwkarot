@@ -2,10 +2,12 @@ name = "dziwkarot-oracle"
 main = "src/worker.js"
 compatibility_date = "2024-11-01"
 
-# Zmienne JAWNE (nie sekrety). Klucze API ustaw osobno przez `wrangler secret put`.
+# Zmienne JAWNE (nie sekrety). Klucze API ustaw przez `wrangler secret put`.
 [vars]
 GEMINI_MODEL = "gemini-3-flash-preview"
-ELEVEN_VOICE_ID = "HH3kybY6uEJ2ebSa9Vy3"
 ELEVEN_MODEL = "eleven_multilingual_v2"
-# Ogranicz, kto może wołać Workera (CORS). Po zmianie domeny — zaktualizuj.
+# Dwa głosy wróżki do wyboru w menu:
+VOICE_MISTYCZNY = "HH3kybY6uEJ2ebSa9Vy3"
+VOICE_SZEPT = "fNmw8sukfGuvWVOp33Ge"
+# Kto może wołać Workera (CORS):
 ALLOWED_ORIGINS = "https://wrobelkamil.github.io,http://localhost:5173"

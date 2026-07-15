@@ -694,3 +694,213 @@ body {
   color: #ffb4a8;
   font-style: italic;
 }
+
+/* ---------------- WYBÓR GŁOSU ---------------- */
+.voice-select { text-align: left; margin-bottom: 26px; }
+.voice-row { display: flex; gap: 12px; }
+.voice-chip {
+  flex: 1;
+  text-align: left;
+  background: rgba(20, 10, 36, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 16px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.voice-chip:hover { transform: translateY(-2px); border-color: var(--gold-dim); }
+.voice-chip.is-active {
+  border-color: var(--gold);
+  background: rgba(45, 25, 70, 0.7);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+.voice-chip__label { font-family: var(--font-display); font-size: 16px; color: var(--gold); }
+.voice-chip__desc { font-size: 13.5px; color: var(--ink-dim); }
+
+.deck-link {
+  display: block;
+  margin: 16px auto 0;
+  background: none;
+  border: none;
+  color: var(--gold-soft);
+  font-family: var(--font-body);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.deck-link:hover { color: var(--gold); }
+
+/* ---------------- PODGLĄD KARTY (unoszenie) ---------------- */
+.card-reveal { position: fixed; inset: 0; z-index: 25; cursor: zoom-out; }
+.card-reveal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(80% 80% at 50% 40%, rgba(30, 16, 55, 0.82), rgba(4, 2, 10, 0.92));
+  backdrop-filter: blur(7px);
+  opacity: 0;
+  transition: opacity 0.55s ease;
+}
+.card-reveal.is-open .card-reveal__backdrop { opacity: 1; }
+
+.card-reveal__card {
+  position: fixed;
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 2;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.65), 0 0 60px rgba(233, 196, 106, 0.18);
+  transition: left 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.6s ease;
+  cursor: default;
+}
+.card-reveal__card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-reveal__card.is-reversed img { transform: rotate(180deg); }
+
+.card-reveal__info {
+  position: fixed;
+  z-index: 3;
+  right: 5vw;
+  top: 50%;
+  width: min(440px, 42vw);
+  transform: translateY(-50%) translateX(20px);
+  opacity: 0;
+  transition: opacity 0.5s ease 0.25s, transform 0.5s ease 0.25s;
+  color: var(--ink);
+  cursor: default;
+}
+.card-reveal.is-open .card-reveal__info { opacity: 1; transform: translateY(-50%) translateX(0); }
+.card-reveal__x {
+  position: absolute;
+  top: -6px;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 20px;
+  cursor: pointer;
+}
+.card-reveal__x:hover { color: var(--gold); }
+.card-reveal__pos {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+.card-reveal__name {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 40px);
+  margin: 6px 0 4px;
+  color: #fff6dc;
+}
+.card-reveal__orient {
+  display: inline-block;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--violet);
+  margin-bottom: 14px;
+}
+.card-reveal__orient.rev { color: var(--gold); }
+.card-reveal__kw { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+.card-reveal__meaning { font-size: 19px; line-height: 1.55; margin: 0; }
+.card-reveal__both p { font-size: 17px; line-height: 1.5; margin: 0 0 14px; }
+.mlabel {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--violet);
+  margin-bottom: 3px;
+}
+.mlabel.rev { color: var(--gold); }
+
+@media (max-width: 760px) {
+  .card-reveal__info {
+    right: 16px;
+    left: 16px;
+    top: auto;
+    bottom: 18px;
+    width: auto;
+    transform: translateY(20px);
+    max-height: 46vh;
+    overflow-y: auto;
+  }
+  .card-reveal.is-open .card-reveal__info { transform: translateY(0); }
+  .card-reveal__meaning, .card-reveal__both p { font-size: 16px; }
+  .voice-chip__desc { display: none; }
+}
+
+/* ---------------- PRZEGLĄDARKA TALII ---------------- */
+.deck {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  overflow-y: auto;
+  background: radial-gradient(120% 80% at 50% -10%, #2a1748 0%, var(--bg-1) 45%, var(--bg-0) 100%);
+  animation: fadeIn 0.4s ease both;
+}
+.deck__bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px;
+  background: linear-gradient(180deg, rgba(11, 7, 20, 0.95), rgba(11, 7, 20, 0.6));
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+.deck__title {
+  font-family: var(--font-display);
+  font-size: clamp(16px, 2.4vw, 22px);
+  letter-spacing: 0.06em;
+  color: var(--gold);
+}
+.deck__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  padding: 22px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.deck__tile {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s;
+}
+.deck__tile img {
+  width: 100%;
+  aspect-ratio: var(--card-ratio);
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.deck__tile:hover { transform: translateY(-4px); }
+.deck__tile:hover img { border-color: var(--gold); box-shadow: 0 0 24px rgba(233, 196, 106, 0.35); }
+.deck__name {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: center;
+}

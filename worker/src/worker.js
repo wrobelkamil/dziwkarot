@@ -2,7 +2,13 @@
 // Klucze API jako SEKRETY (nigdy w repo):
 //   npx wrangler secret put GEMINI_API_KEY
 //   npx wrangler secret put ELEVENLABS_API_KEY
-// Zmienne jawne w wrangler.toml [vars]: GEMINI_MODEL, ELEVEN_VOICE_ID, ELEVEN_MODEL, ALLOWED_ORIGINS.
+// Zmienne jawne w wrangler.toml [vars]: GEMINI_MODEL, ELEVEN_MODEL, ALLOWED_ORIGINS,
+//   VOICE_MISTYCZNY, VOICE_SZEPT.
+
+const VOICE_IDS = (env) => ({
+  mistyczny: env.VOICE_MISTYCZNY || "HH3kybY6uEJ2ebSa9Vy3",
+  szept: env.VOICE_SZEPT || "fNmw8sukfGuvWVOp33Ge",
+});
 
 export default {
   async fetch(request, env) {
@@ -56,10 +62,7 @@ async function handleProphecy(request, env, cors) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const res = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": env.GEMINI_API_KEY,
-    },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: { temperature: 1.0, topP: 0.95, maxOutputTokens: 3072 },
@@ -72,10 +75,7 @@ async function handleProphecy(request, env, cors) {
   }
   const data = await res.json();
   const cand = data.candidates?.[0];
-  const text = (cand?.content?.parts || [])
-    .map((p) => p.text || "")
-    .join("")
-    .trim();
+  const text = (cand?.content?.parts || []).map((p) => p.text || "").join("").trim();
   if (!text) {
     return json(
       {
@@ -91,43 +91,50 @@ async function handleProphecy(request, env, cors) {
 }
 
 function buildPrompt(body) {
-  const { question, card, position, index, total, closing } = body || {};
+  const { question, card, position, orient_label, closing } = body || {};
   const q = (question || "").trim();
-  const qLine = q ? `„${q}”` : "(klient nie zadał pytania wprost — potraktuj to jako pytanie o najbliższą przyszłość)";
+  const qLine = q
+    ? "„" + q + "”"
+    : "(klient nie zadał pytania wprost — potraktuj to jako pytanie o najbliższą przyszłość)";
   const persona =
-    "Jesteś Madame Dziwina — charyzmatyczną wróżką czytającą satyryczny tarot „Dziwkarot”. " +
-    "Mówisz PO POLSKU, w drugiej osobie, obrazowo i z przymrużeniem oka, ale bez wulgarności i bez poniżania. " +
-    "Nie tłumaczysz mechaniki tarota, nie używasz list ani nagłówków.";
+    "Jesteś Madame Dziwina — wytrawna wróżka czytająca karty z powagą i skupieniem. " +
+    "Mówisz PO POLSKU, w drugiej osobie, ciepłym lecz poważnym, mistycznym i obrazowym tonem, " +
+    "jak prawdziwa wróżbitka pochylona nad kryształową kulą. " +
+    "Bez żartów, ironii, wulgaryzmów, list i nagłówków. " +
+    "Interpretujesz SYMBOLICZNE znaczenie karty — nie powtarzasz jej dosłownej nazwy.";
 
   if (closing) {
-    return (
-      persona +
-      `\n\nPytanie klienta: ${qLine}.` +
-      "\nOdsłoniłaś już wszystkie karty. Powiedz KRÓTKO (dokładnie 2 zdania) jedną spójną myśl-podsumowanie " +
-      "całego rozkładu jako odpowiedź na to pytanie, zakończoną lekko przewrotnym błogosławieństwem."
-    );
+    return [
+      persona,
+      "Pytanie klienta: " + qLine + ".",
+      "Odsłoniłaś już wszystkie karty. Wypowiedz 1-2 zdania (maksymalnie ~45 słów), " +
+        "które spinają cały rozkład w jedną mistyczną odpowiedź na to pytanie, " +
+        "zakończoną krótkim błogosławieństwem.",
+    ].join("\n\n");
   }
 
   const orient = card?.reversed ? "odwrócona" : "prosta";
-  return (
-    persona +
-    `\n\nPytanie klienta: ${qLine}.` +
-    `\nKarta ${index + 1} z ${total} leży na pozycji „${position}”.` +
-    `\nKarta: „${card?.name}”, pozycja ${orient}. Jej wymowa: ${card?.meaning}` +
-    `\n\nPowiedz ZWIĘŹLE — dokładnie 2, najwyżej 3 zdania — jak TA karta w tej konkretnej pozycji ` +
-    `„${position}” odpowiada na pytanie klienta. Połącz wprost trzy rzeczy: pytanie, sens pozycji i wymowę karty. ` +
-    "Bez wstępów i ogólników — konkret o tej jednej karcie, jak wróżka mówiąca prosto w oczy."
-  );
+  return [
+    persona,
+    "Pytanie klienta: " + qLine + ".",
+    "Pozycja w rozkładzie: „" + position + "” (" + (orient_label || position) + ").",
+    "Symboliczne znaczenie karty (pozycja " + orient + "): " + (card?.meaning || ""),
+    "Wygłoś krótką, mistyczną przepowiednię — 1 do 2 zdań, maksymalnie ~45 słów — " +
+      "która łączy pytanie klienta, sens tej pozycji i przesłanie karty. " +
+      "Skup się na symbolice i radzie, nie na nazwie karty. Ton poważny, obrazowy, wróżbiarski.",
+  ].join("\n\n");
 }
 
 // ---- ElevenLabs: głos ----
 async function handleSpeak(request, env, cors) {
   if (!env.ELEVENLABS_API_KEY) return json({ error: "Brak ELEVENLABS_API_KEY" }, 500, cors);
-  const { text } = await request.json();
+  const { text, voice } = await request.json();
   if (!text) return json({ error: "Brak text" }, 400, cors);
 
-  const voice = env.ELEVEN_VOICE_ID || "HH3kybY6uEJ2ebSa9Vy3";
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+  const voices = VOICE_IDS(env);
+  const voiceId = voices[voice] || voices.mistyczny;
+
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: "POST",
     headers: {
       "xi-api-key": env.ELEVENLABS_API_KEY,

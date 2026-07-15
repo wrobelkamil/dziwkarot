@@ -1,20 +1,17 @@
 const BACK = "./karty/rewers.png";
 
 // Pojedyncza karta na stole. Klik odsłania (obrót 3D z rewersu).
-// Ponowny klik na odsłoniętą kartę otwiera szczegóły ze znaczeniem.
-export default function TarotCard({
-  entry,
-  position,
-  index,
-  onReveal,
-  onOpen,
-}) {
+// Ponowny klik na odsłoniętą kartę otwiera podgląd z animacją unoszenia.
+export default function TarotCard({ entry, position, index, onReveal, onOpen }) {
   const { card, reversed, revealed } = entry;
   const face = `./karty/${card.file}`;
 
-  const handleClick = () => {
+  const handleClick = (e) => {
     if (!revealed) onReveal(index);
-    else onOpen(index);
+    else {
+      const el = e.currentTarget.querySelector(".card3d__front") || e.currentTarget;
+      onOpen(index, el.getBoundingClientRect());
+    }
   };
 
   const style = {
@@ -34,9 +31,7 @@ export default function TarotCard({
           (reversed ? " is-reversed" : "")
         }
         onClick={handleClick}
-        aria-label={
-          revealed ? `${card.name} — pokaż znaczenie` : "Odsłoń kartę"
-        }
+        aria-label={revealed ? `${card.name} — pokaż znaczenie` : "Odsłoń kartę"}
       >
         <span className="card3d__inner">
           <span className="card3d__face card3d__back">

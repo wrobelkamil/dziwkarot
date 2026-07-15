@@ -21,12 +21,12 @@ export async function fetchProphecy(payload) {
   return data.text;
 }
 
-// Audio (mp3) z przeczytaną przepowiednią; zwraca obiekt URL.
-export async function fetchSpeech(text) {
+// Audio (mp3) z przeczytaną przepowiednią; voice: "mistyczny" | "szept".
+export async function fetchSpeech(text, voice) {
   const res = await fetch(base() + "/speak", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, voice: voice || "mistyczny" }),
   });
   if (!res.ok) {
     let msg = "Głos (" + res.status + ")";

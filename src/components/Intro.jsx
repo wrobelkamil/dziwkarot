@@ -1,10 +1,18 @@
 import spreads from "../data/spreads.js";
 
+const VOICES = [
+  { key: "mistyczny", label: "Mistyczny", desc: "głęboki, wróżbiarski" },
+  { key: "szept", label: "Szept", desc: "cichy, tajemniczy" },
+];
+
 export default function Intro({
   question,
   setQuestion,
   spreadId,
   setSpreadId,
+  voiceKey,
+  onVoice,
+  onShowDeck,
   onBegin,
 }) {
   return (
@@ -36,9 +44,7 @@ export default function Intro({
               <button
                 key={s.id}
                 type="button"
-                className={
-                  "spread-card" + (s.id === spreadId ? " is-active" : "")
-                }
+                className={"spread-card" + (s.id === spreadId ? " is-active" : "")}
                 onClick={() => setSpreadId(s.id)}
               >
                 <span className="spread-card__count">
@@ -53,9 +59,31 @@ export default function Intro({
           </div>
         </div>
 
+        <div className="voice-select">
+          <span className="field__label">Głos wróżki</span>
+          <div className="voice-row">
+            {VOICES.map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                className={"voice-chip" + (v.key === voiceKey ? " is-active" : "")}
+                onClick={() => onVoice(v.key)}
+              >
+                <span className="voice-chip__label">{v.label}</span>
+                <span className="voice-chip__desc">{v.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button type="button" className="begin-btn" onClick={onBegin}>
           <span>Postaw karty</span>
         </button>
+
+        <button type="button" className="deck-link" onClick={onShowDeck}>
+          Zobacz pełną talię
+        </button>
+
         <p className="disclaimer">projekt satyryczny · nie traktuj poważnie</p>
       </div>
     </div>

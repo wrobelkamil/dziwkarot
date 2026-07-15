@@ -7,7 +7,8 @@ import Starfield from "./components/Starfield.jsx";
 import Intro from "./components/Intro.jsx";
 import ShuffleOverlay from "./components/ShuffleOverlay.jsx";
 import Board from "./components/Board.jsx";
-import CardModal from "./components/CardModal.jsx";
+import CardReveal from "./components/CardReveal.jsx";
+import DeckGallery from "./components/DeckGallery.jsx";
 import OraclePanel from "./components/OraclePanel.jsx";
 
 function drawCards(n) {
@@ -40,18 +41,26 @@ export default function App() {
   const [phase, setPhase] = useState("intro");
   const [question, setQuestion] = useState("");
   const [spreadId, setSpreadId] = useState("three");
+  const [voiceKey, setVoiceKey] = useState("mistyczny");
   const [draw, setDraw] = useState([]);
-  const [modalIndex, setModalIndex] = useState(null);
+  const [modal, setModal] = useState(null); // { index, rect }
+  const [showDeck, setShowDeck] = useState(false);
   const [oracle, setOracle] = useState(initialOracle);
 
   const spread = getSpread(spreadId);
 
-  const tokenRef = useRef(0); // unieważnia operacje async po resecie seansu
-  const speakSeqRef = useRef(0); // gwarantuje TYLKO JEDEN głos na raz
+  const tokenRef = useRef(0);
+  const speakSeqRef = useRef(0);
   const indexRef = useRef(0);
   const mutedRef = useRef(false);
   const audioRef = useRef(null);
   const textsRef = useRef({});
+  const voiceRef = useRef("mistyczny");
+
+  const chooseVoice = useCallback((v) => {
+    voiceRef.current = v;
+    setVoiceKey(v);
+  }, []);
 
   const beginReading = useCallback(() => {
     setDraw(drawCards(spread.positions.length));
@@ -63,9 +72,7 @@ export default function App() {
   const onShuffleDone = useCallback(() => setPhase("reading"), []);
 
   const reveal = useCallback((index) => {
-    setDraw((prev) =>
-      prev.map((c, i) => (i === index ? { ...c, revealed: true } : c))
-    );
+    setDraw((prev) => prev.map((c, i) => (i === index ? { ...c, revealed: true } : c)));
   }, []);
 
   const revealAll = useCallback(() => {
@@ -79,7 +86,7 @@ export default function App() {
     }
   };
 
-  // Odtwarza dokładnie jeden głos. Każde wywołanie unieważnia poprzednie (seq).
+  // Dokładnie jeden głos na raz — każde wywołanie unieważnia poprzednie.
   const playVoice = (text, onReadyToShow) => {
     const seq = ++speakSeqRef.current;
     const token = tokenRef.current;
@@ -90,7 +97,7 @@ export default function App() {
       if (onReadyToShow) onReadyToShow();
       return;
     }
-    fetchSpeech(text)
+    fetchSpeech(text, voiceRef.current)
       .then((url) => {
         if (stale() || mutedRef.current) {
           URL.revokeObjectURL(url);
@@ -101,7 +108,7 @@ export default function App() {
         const a = new Audio(url);
         audioRef.current = a;
         a.onended = () => URL.revokeObjectURL(url);
-        if (onReadyToShow) onReadyToShow(); // tekst pojawia się razem z głosem
+        if (onReadyToShow) onReadyToShow();
         a.play().catch(() => {});
       })
       .catch((e) => {
@@ -139,7 +146,6 @@ export default function App() {
       }
       if (token !== tokenRef.current) return;
       textsRef.current[i] = text;
-      // ładujemy głos; tekst pokaże się dopiero, gdy głos będzie gotowy
       setOracle((o) => ({ ...o, status: "voicing" }));
       playVoice(text, (audioErr) =>
         setOracle((o) => ({ ...o, texts: { ...o.texts, [i]: text }, status: "ready", audioErr: audioErr || null }))
@@ -205,7 +211,7 @@ export default function App() {
     mutedRef.current = next;
     setOracle((o) => ({ ...o, muted: next }));
     if (next) {
-      speakSeqRef.current += 1; // unieważnij ewentualny głos w locie
+      speakSeqRef.current += 1;
       stopAudio();
     } else {
       const t = currentText();
@@ -224,7 +230,7 @@ export default function App() {
     tokenRef.current += 1;
     speakSeqRef.current += 1;
     stopAudio();
-    setModalIndex(null);
+    setModal(null);
     setDraw([]);
     textsRef.current = {};
     setOracle(initialOracle);
@@ -244,6 +250,9 @@ export default function App() {
           setQuestion={setQuestion}
           spreadId={spreadId}
           setSpreadId={setSpreadId}
+          voiceKey={voiceKey}
+          onVoice={chooseVoice}
+          onShowDeck={() => setShowDeck(true)}
           onBegin={beginReading}
         />
       )}
@@ -258,7 +267,7 @@ export default function App() {
           question={question}
           draw={draw}
           onReveal={reveal}
-          onOpen={setModalIndex}
+          onOpen={(index, rect) => setModal({ index, rect })}
           onRevealAll={revealAll}
           onReset={reset}
           onStartOracle={startOracle}
@@ -267,13 +276,16 @@ export default function App() {
         />
       )}
 
-      {modalIndex !== null && draw[modalIndex] && (
-        <CardModal
-          entry={draw[modalIndex]}
-          position={spread.positions[modalIndex]}
-          onClose={() => setModalIndex(null)}
+      {modal && draw[modal.index] && (
+        <CardReveal
+          entry={draw[modal.index]}
+          position={spread.positions[modal.index]?.label}
+          rect={modal.rect}
+          onClose={() => setModal(null)}
         />
       )}
+
+      {showDeck && <DeckGallery cards={cards} onClose={() => setShowDeck(false)} />}
 
       {phase === "reading" && oracle.active && (
         <OraclePanel
