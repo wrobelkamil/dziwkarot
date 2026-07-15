@@ -30,7 +30,7 @@ const initialOracle = {
   done: false,
   index: 0,
   texts: {},
-  status: "idle", // idle | thinking | ready | done | error
+  status: "idle", // idle | thinking | voicing | ready | done | error
   error: null,
   audioErr: null,
   muted: false,
@@ -46,14 +46,16 @@ export default function App() {
 
   const spread = getSpread(spreadId);
 
-  const tokenRef = useRef(0); // unieważnia stare operacje async po resecie
+  const tokenRef = useRef(0); // unieważnia operacje async po resecie seansu
+  const speakSeqRef = useRef(0); // gwarantuje TYLKO JEDEN głos na raz
   const indexRef = useRef(0);
   const mutedRef = useRef(false);
   const audioRef = useRef(null);
-  const resolveRef = useRef(null);
+  const textsRef = useRef({});
 
   const beginReading = useCallback(() => {
     setDraw(drawCards(spread.positions.length));
+    textsRef.current = {};
     setOracle(initialOracle);
     setPhase("shuffle");
   }, [spread]);
@@ -77,29 +79,38 @@ export default function App() {
     }
   };
 
-  // Odtwarza głos w tle — NIE blokuje przechodzenia między kartami.
-  const speakBg = (text, token) => {
-    if (mutedRef.current || !text) return;
+  // Odtwarza dokładnie jeden głos. Każde wywołanie unieważnia poprzednie (seq).
+  const playVoice = (text, onReadyToShow) => {
+    const seq = ++speakSeqRef.current;
+    const token = tokenRef.current;
     stopAudio();
+    const stale = () => seq !== speakSeqRef.current || token !== tokenRef.current;
+
+    if (mutedRef.current || !text) {
+      if (onReadyToShow) onReadyToShow();
+      return;
+    }
     fetchSpeech(text)
       .then((url) => {
-        if (token !== tokenRef.current || mutedRef.current) {
+        if (stale() || mutedRef.current) {
           URL.revokeObjectURL(url);
+          if (onReadyToShow && !stale()) onReadyToShow();
           return;
         }
+        stopAudio();
         const a = new Audio(url);
         audioRef.current = a;
         a.onended = () => URL.revokeObjectURL(url);
+        if (onReadyToShow) onReadyToShow(); // tekst pojawia się razem z głosem
         a.play().catch(() => {});
       })
       .catch((e) => {
-        if (token === tokenRef.current) {
-          setOracle((o) => ({ ...o, audioErr: e.message }));
+        if (!stale()) {
+          if (onReadyToShow) onReadyToShow(e.message);
+          else setOracle((o) => ({ ...o, audioErr: e.message }));
         }
       });
   };
-
-  const textAt = (i) => (i >= draw.length ? oracle.texts.closing : oracle.texts[i]);
 
   const runStep = useCallback(
     async (i) => {
@@ -123,14 +134,16 @@ export default function App() {
           },
         });
       } catch (e) {
-        if (token === tokenRef.current) {
-          setOracle((o) => ({ ...o, status: "error", error: e.message }));
-        }
+        if (token === tokenRef.current) setOracle((o) => ({ ...o, status: "error", error: e.message }));
         return;
       }
       if (token !== tokenRef.current) return;
-      setOracle((o) => ({ ...o, texts: { ...o.texts, [i]: text }, status: "ready" }));
-      speakBg(text, token);
+      textsRef.current[i] = text;
+      // ładujemy głos; tekst pokaże się dopiero, gdy głos będzie gotowy
+      setOracle((o) => ({ ...o, status: "voicing" }));
+      playVoice(text, (audioErr) =>
+        setOracle((o) => ({ ...o, texts: { ...o.texts, [i]: text }, status: "ready", audioErr: audioErr || null }))
+      );
     },
     [draw, question, spread, reveal]
   );
@@ -144,13 +157,16 @@ export default function App() {
     let text = "";
     try {
       text = await fetchProphecy({ question, closing: true, total: draw.length });
-    } catch {
-      setOracle((o) => ({ ...o, status: "done", done: true }));
+    } catch (e) {
+      setOracle((o) => ({ ...o, status: "error", error: e.message }));
       return;
     }
     if (token !== tokenRef.current) return;
-    setOracle((o) => ({ ...o, texts: { ...o.texts, closing: text }, status: "done", done: true }));
-    speakBg(text, token);
+    textsRef.current.closing = text;
+    setOracle((o) => ({ ...o, status: "voicing" }));
+    playVoice(text, (audioErr) =>
+      setOracle((o) => ({ ...o, texts: { ...o.texts, closing: text }, status: "done", done: true, audioErr: audioErr || null }))
+    );
   }, [draw, question]);
 
   const startOracle = useCallback(() => {
@@ -159,47 +175,58 @@ export default function App() {
       return;
     }
     tokenRef.current += 1;
+    speakSeqRef.current += 1;
     mutedRef.current = false;
+    textsRef.current = {};
     setOracle({ ...initialOracle, active: true, status: "thinking" });
     runStep(0);
   }, [runStep]);
 
   const nextCard = useCallback(() => {
-    if (oracle.status === "thinking") return;
+    if (oracle.status === "thinking" || oracle.status === "voicing") return;
     stopAudio();
-    if (oracle.done) return; // przycisk „zakończ" obsłużony osobno
+    speakSeqRef.current += 1;
+    if (oracle.done) return;
     const i = indexRef.current;
     if (i < draw.length - 1) runStep(i + 1);
     else runClosing();
   }, [oracle.status, oracle.done, draw.length, runStep, runClosing]);
 
+  const currentText = () =>
+    indexRef.current >= draw.length ? textsRef.current.closing : textsRef.current[indexRef.current];
+
   const replay = useCallback(() => {
-    const t = textAt(indexRef.current);
-    if (t) speakBg(t, tokenRef.current);
-  }, [oracle.texts, draw.length]);
+    const t = currentText();
+    if (t) playVoice(t);
+  }, [draw.length]);
 
   const toggleMute = useCallback(() => {
     const next = !mutedRef.current;
     mutedRef.current = next;
     setOracle((o) => ({ ...o, muted: next }));
-    if (next) stopAudio();
-    else {
-      const t = textAt(indexRef.current);
-      if (t) speakBg(t, tokenRef.current);
+    if (next) {
+      speakSeqRef.current += 1; // unieważnij ewentualny głos w locie
+      stopAudio();
+    } else {
+      const t = currentText();
+      if (t) playVoice(t);
     }
-  }, [oracle.texts, draw.length]);
+  }, [draw.length]);
 
   const closeOracle = useCallback(() => {
     tokenRef.current += 1;
+    speakSeqRef.current += 1;
     stopAudio();
     setOracle(initialOracle);
   }, []);
 
   const reset = useCallback(() => {
     tokenRef.current += 1;
+    speakSeqRef.current += 1;
     stopAudio();
     setModalIndex(null);
     setDraw([]);
+    textsRef.current = {};
     setOracle(initialOracle);
     setPhase("intro");
   }, []);

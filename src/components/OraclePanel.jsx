@@ -1,5 +1,6 @@
 export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, onMute, onClose }) {
   const { index, texts, status, error, audioErr, muted, done } = oracle;
+  const busy = status === "thinking" || status === "voicing";
 
   // Worker nie skonfigurowany
   if (error === "NOT_CONFIGURED") {
@@ -46,6 +47,8 @@ export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, on
   const statusLabel =
     status === "thinking"
       ? "wpatruje się w karty…"
+      : status === "voicing"
+      ? "przywołuje głos…"
       : done
       ? "seans zakończony"
       : muted
@@ -69,7 +72,7 @@ export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, on
           <span className="oracle__who">🔮 Madame Dziwina</span>
           <span className="oracle__status">
             {statusLabel}
-            {status === "thinking" && <span className="dots"><i/><i/><i/></span>}
+            {busy && <span className="dots"><i/><i/><i/></span>}
           </span>
         </div>
 
@@ -93,12 +96,7 @@ export default function OraclePanel({ oracle, draw, spread, onNext, onReplay, on
         )}
 
         <div className="oracle__controls">
-          <button
-            type="button"
-            className="oracle-next"
-            onClick={onPrimary}
-            disabled={status === "thinking"}
-          >
+          <button type="button" className="oracle-next" onClick={onPrimary} disabled={busy}>
             {nextLabel}
           </button>
           <button type="button" className="ghost-btn ghost-btn--soft" onClick={onMute}>

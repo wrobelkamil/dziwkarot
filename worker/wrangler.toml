@@ -5,7 +5,7 @@ compatibility_date = "2024-11-01"
 # Zmienne JAWNE (nie sekrety). Klucze API ustaw osobno przez `wrangler secret put`.
 [vars]
 GEMINI_MODEL = "gemini-3-flash-preview"
-ELEVEN_VOICE_ID = "7NsaqHdLuKNFvEfjpUno"
+ELEVEN_VOICE_ID = "HH3kybY6uEJ2ebSa9Vy3"
 ELEVEN_MODEL = "eleven_multilingual_v2"
 # Ogranicz, kto może wołać Workera (CORS). Po zmianie domeny — zaktualizuj.
 ALLOWED_ORIGINS = "https://wrobelkamil.github.io,http://localhost:5173"

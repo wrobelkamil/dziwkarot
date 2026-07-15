@@ -62,7 +62,7 @@ async function handleProphecy(request, env, cors) {
     },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 1.0, topP: 0.95, maxOutputTokens: 4096 },
+      generationConfig: { temperature: 1.0, topP: 0.95, maxOutputTokens: 3072 },
     }),
   });
 
@@ -93,32 +93,30 @@ async function handleProphecy(request, env, cors) {
 function buildPrompt(body) {
   const { question, card, position, index, total, closing } = body || {};
   const q = (question || "").trim();
+  const qLine = q ? `„${q}”` : "(klient nie zadał pytania wprost — potraktuj to jako pytanie o najbliższą przyszłość)";
   const persona =
-    "Jesteś Madame Dziwina — ekscentryczną, charyzmatyczną wróżką czytającą satyryczny tarot „Dziwkarot”. " +
-    "Mówisz PO POLSKU, w drugiej osobie, tajemniczo, obrazowo i z przymrużeniem oka. " +
-    "Masz humor, ale NIE jesteś wulgarna i nikogo nie poniżasz — nazwy kart traktujesz z komediowym dystansem. " +
-    "Nie tłumaczysz mechaniki tarota, nie używasz nagłówków ani list — mówisz płynnie, jak przy stoliku z kryształową kulą.";
+    "Jesteś Madame Dziwina — charyzmatyczną wróżką czytającą satyryczny tarot „Dziwkarot”. " +
+    "Mówisz PO POLSKU, w drugiej osobie, obrazowo i z przymrużeniem oka, ale bez wulgarności i bez poniżania. " +
+    "Nie tłumaczysz mechaniki tarota, nie używasz list ani nagłówków.";
 
   if (closing) {
     return (
       persona +
-      "\n\nTo domknięcie seansu. Pytanie klienta: " +
-      (q ? `„${q}”` : "(nie zadano wprost — potraktuj to jako pytanie o najbliższą przyszłość)") +
-      ".\nWłaśnie odsłoniłaś wszystkie karty. Wypowiedz krótką, spójną klamrę-przepowiednię (3–4 zdania), " +
-      "która łączy wymowę całego rozkładu i daje klientowi jedną myśl na drogę. Zakończ ciepłym, lekko przewrotnym błogosławieństwem."
+      `\n\nPytanie klienta: ${qLine}.` +
+      "\nOdsłoniłaś już wszystkie karty. Powiedz KRÓTKO (dokładnie 2 zdania) jedną spójną myśl-podsumowanie " +
+      "całego rozkładu jako odpowiedź na to pytanie, zakończoną lekko przewrotnym błogosławieństwem."
     );
   }
 
   const orient = card?.reversed ? "odwrócona" : "prosta";
   return (
     persona +
-    "\n\nPytanie klienta: " +
-    (q ? `„${q}”` : "(nie zadano wprost — potraktuj to jako pytanie o najbliższą przyszłość)") +
-    `.\nWłaśnie odsłaniasz kartę ${index + 1} z ${total} na pozycji „${position}”.` +
-    `\nKarta: „${card?.name}” (pozycja ${orient}).` +
-    `\nJej wymowa: ${card?.meaning}` +
-    "\n\nWypowiedz przepowiednię dotyczącą tej jednej karty i jej pozycji (3–5 zdań), " +
-    "wplatając nawiązanie do pytania. Mów jak wróżka na żywo — bez wstępów typu „oto twoja karta”, od razu do rzeczy."
+    `\n\nPytanie klienta: ${qLine}.` +
+    `\nKarta ${index + 1} z ${total} leży na pozycji „${position}”.` +
+    `\nKarta: „${card?.name}”, pozycja ${orient}. Jej wymowa: ${card?.meaning}` +
+    `\n\nPowiedz ZWIĘŹLE — dokładnie 2, najwyżej 3 zdania — jak TA karta w tej konkretnej pozycji ` +
+    `„${position}” odpowiada na pytanie klienta. Połącz wprost trzy rzeczy: pytanie, sens pozycji i wymowę karty. ` +
+    "Bez wstępów i ogólników — konkret o tej jednej karcie, jak wróżka mówiąca prosto w oczy."
   );
 }
 
@@ -128,7 +126,7 @@ async function handleSpeak(request, env, cors) {
   const { text } = await request.json();
   if (!text) return json({ error: "Brak text" }, 400, cors);
 
-  const voice = env.ELEVEN_VOICE_ID || "7NsaqHdLuKNFvEfjpUno";
+  const voice = env.ELEVEN_VOICE_ID || "HH3kybY6uEJ2ebSa9Vy3";
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
     method: "POST",
     headers: {
