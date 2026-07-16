@@ -13,10 +13,10 @@ export default function CardReveal({ entry, position, rect, browse = false, onCl
     const vh = window.innerHeight;
     const ratio = 826 / 1418;
     const mobile = vw < 760;
-    const h = mobile ? Math.min(vh * 0.42, 330) : Math.min(vh * 0.66, 540);
+    const h = mobile ? Math.min(vh * 0.4, 300) : Math.min(vh * 0.66, 540);
     const w = h * ratio;
     const left = mobile ? (vw - w) / 2 : Math.max(24, vw * 0.30 - w / 2);
-    const top = mobile ? vh * 0.045 : (vh - h) / 2;
+    const top = mobile ? vh * 0.035 : (vh - h) / 2;
     return { left, top, w, h };
   }, []);
 

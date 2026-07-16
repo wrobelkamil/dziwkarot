@@ -904,3 +904,73 @@ body {
   color: var(--ink);
   text-align: center;
 }
+
+/* ================= MOBILE (dopracowanie) ================= */
+/* pełna wysokość na telefonach (dvh omija pasek adresu) */
+@supports (height: 100dvh) {
+  .intro, .reading, .shuffle { min-height: 100dvh; }
+}
+
+@media (max-width: 600px) {
+  .intro { padding: 30px 16px; }
+  .title { font-size: clamp(38px, 13vw, 60px); }
+  .subtitle { font-size: 16px; margin-bottom: 24px; }
+  .field { margin-bottom: 20px; }
+  .spread-select { margin-bottom: 22px; }
+  .spread-card { padding: 13px 14px 14px; }
+  .spread-card__desc { font-size: 13.5px; }
+  .begin-btn { width: 100%; padding: 16px 20px; font-size: 15px; }
+
+  /* Stół z kartami — więcej miejsca i większe karty */
+  .reading { padding: 12px 8px 18px; }
+  .reading__spread { font-size: 11px; letter-spacing: 0.18em; }
+  .reading__question { font-size: 17px; }
+  .board-wrap { padding: 6px 0; }
+  .board { width: 98vw; max-height: 62vh; }
+  .board[data-spread="single"] { --cardw: 54%; }
+  .board[data-spread="three"] { --cardw: 30%; }
+  .board[data-spread="horseshoe"] { --cardw: 18.5%; }
+  .board[data-spread="celtic"] { --cardw: 19%; }
+  .slot { gap: 3px; }
+  .slot__label { font-size: 8px; letter-spacing: 0.04em; }
+  .slot__name { font-size: 11px; }
+
+  /* Przyciski stołu */
+  .oracle-btn { font-size: 13px; padding: 13px 18px; text-align: center; line-height: 1.2; }
+  .reading__foot { gap: 8px; }
+  .foot-row { gap: 8px; width: 100%; }
+  .foot-row .ghost-btn { flex: 1; }
+  .hint { font-size: 13.5px; }
+
+  /* Panel wróżki jako dolny arkusz */
+  .oracle { padding: 8px; }
+  .oracle__panel { padding: 15px 15px 16px; border-radius: 16px 16px 0 0; width: 100%; }
+  .oracle__who { font-size: 15px; }
+  .oracle__name { font-size: 18px; }
+  .oracle__text { font-size: 16px; max-height: 34vh; margin-bottom: 12px; }
+  .oracle__controls { gap: 8px; }
+  .oracle-next { flex: 1 1 100%; padding: 13px; font-size: 13px; }
+  .oracle__controls .ghost-btn { flex: 1; }
+
+  /* Podgląd karty */
+  .card-reveal__name { font-size: 24px; }
+  .card-reveal__meaning, .card-reveal__both p { font-size: 15.5px; }
+  .card-reveal__info { bottom: 12px; max-height: 48vh; }
+
+  /* Przeglądarka talii — 3 kolumny */
+  .deck__grid { grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; }
+  .deck__name { font-size: 11.5px; }
+  .deck__bar { padding: 12px 16px; }
+
+  /* Tasowanie */
+  .shuffle__deck { width: 108px; height: 184px; }
+  .shuffle__card { width: 108px; }
+  .shuffle__text { font-size: 18px; }
+}
+
+/* bardzo wąskie ekrany */
+@media (max-width: 380px) {
+  .board[data-spread="celtic"] { --cardw: 20.5%; }
+  .board[data-spread="horseshoe"] { --cardw: 20%; }
+  .deck__grid { grid-template-columns: repeat(2, 1fr); }
+}
